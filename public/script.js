@@ -35,21 +35,22 @@ const getDownloadActhor = ({id, resolution, format}) => {
   if (format === 'video') {
     url += `&resolution=${resolution}`
   }
-  const a = document.createElement('a')
-  a.herf = url
+  alert(url)
+  let a = document.createElement('a')
+  a.href = url
   a.download = true
   
   return a
 }
 
 const download = ({id, resolution, format}) => {
-  const link = getDownloadActhor({id, resolution, format})
-  link.click()
+  let a = getDownloadActhor({id, resolution, format})
+  a.click()
 }
 
-const getRadioValue = (name) => {
-  document.querySelector(`[name="${name}"]:checked`).valur
-}
+const getRadioValue = (name) => 
+  document.querySelector(`[name="${name}"]:checked`).value
+
 
 startBtn.addEventListener('click', async () => {
   const id = getVideoID()
@@ -63,7 +64,7 @@ startBtn.addEventListener('click', async () => {
 downloadBtn.addEventListener('click', () => {
   download({
     id: getVideoID(),
-    resolution: getRadioValue('resolutions'),
+    resolution: getRadioValue('resolution'),
     format: getRadioValue('format')
   })
 })

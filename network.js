@@ -1,6 +1,6 @@
 const express = require('express')
-const ytdl = require('ytdl')
-const { chain, last, forEach } = require('loadsh')
+const ytdl = require('ytdl-core')
+const { chain, last, forEach } = require('lodash')
 const { validate, Joi } = require('express-validation')
 const { spawn } = require('child_process')
 const ffmpegPath = require('ffmpeg-static')
@@ -10,14 +10,14 @@ const app = express()
 
 app.use(express.static('public'));
 
-const getResolutions = formats => {
+const getResolutions = formats => 
   chain(formats)
     .filter('height')
     .map('height')
     .uniq()
     .orderBy(null, 'desc')
-    .value()
-}
+    .value();
+
 
 app.get('/api/video',
   validate({
@@ -26,10 +26,13 @@ app.get('/api/video',
     })
   }), (req, res, next) => {
     const { id } = req.query
-    ytdl.getInfo(id).then(({ videoDetails, formats }) => {
+    ytdl.getInfo(id)
+      .then(({ videoDetails, formats }) => {
+        //res.json({formats})
       const { title, thumbnails } = videoDetails
       const thumbnailURL = last(thumbnails).url
       const resolutions = getResolutions(formats)
+      res.json({title, thumbnailURL, resolutions})
     })
     .catch((err) => next(err))
 })
@@ -60,18 +63,19 @@ app.get('/download',
         const resolution = parseInt(req.query.resolution)
         
         const resolutions = getResolutions(formats)
-        
+        console.log(`${format} ${resolutions}`)
+      
         if (!resolutions.includes(resolution)) {
           return next(new Error('resolution invalid'))
         }
         
         const videoFormat = chain(formats)
-          .filter(({ height, videoCodec}) => {
-            height === resolution && videoCodec?. startsWith('avc1')
-          })
+          .filter(({ height, videoCodec}) => (
+            height === resolution && videoCodec.startsWith('avc1')
+          ))
           .orderBy('fps', 'desc')
           .head()
-          .value()
+          .value();
         
         streams.video = ytdl(id, { quality: videoFormat.itag })
         streams.audio = ytdl(id, { quality: 'highestaudio' })
@@ -116,7 +120,7 @@ app.get('/download',
           '-crf', '27',
           '-preset', 'veryfast',
           '-movflags', 'frag_keyframe+empty_moov',
-          '-f', 'mp4'
+          '-f', 'mp4',
         ],
         audio: [
           '-i', `pipe${pipes.audio}`,
@@ -125,7 +129,7 @@ app.get('/download',
           '-ar', '44100',
           '-ac', '2',
           '-b:a', '192k',
-          '-f', 'mp3'
+          '-f', 'mp3',
         ]
       }
       
@@ -133,7 +137,7 @@ app.get('/download',
         ...ffmpegInputOptions[format],
         '-loglevel', 'error',
         '-'
-      ],
+      ]
       
       const ffmpegProcess = spawn(
         ffmpegPath,
@@ -154,10 +158,10 @@ app.get('/download',
       
       ffmpegProcess.stdio[pipes.out].pipe(res)
       
-      const ffmpegLogs = ''
+      let ffmpegLogs = ''
       ffmpegProcess.stdio[pipes.err].on(
         'data',
-        (chunk) => ffmpegLog += chunk.toString()
+        (chunk) => ffmpegLogs += chunk.toString()
       )
       
       ffmpegProcess.on(
